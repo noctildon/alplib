@@ -47,7 +47,7 @@ class PrimakoffSigmaFF:
         self.M = mat.m[0]
         self.helm_ff = NuclearHelmFF(mat)
         self.atomic_ff = ElectronElasticFF(mat)
-    
+
     def dsigma_dt(self, t, s, ma, M, g):
         dsigma_dt = free_primakoff_dsigma_dt(t, s, ma, M, g)
         return dsigma_dt * (self.helm_ff(sqrt(-t)) + self.atomic_ff(sqrt(-t)))
@@ -57,7 +57,7 @@ class PrimakoffSigmaFF:
         pa_cm2 = (s - self.M**2)**2 / (4*s)
         tmin = ma**2 - 2*egamma*(sqrt(pa_cm2 + ma**2) + sqrt(pa_cm2))
         tmax = ma**2 - 2*egamma*(sqrt(pa_cm2 + ma**2) - sqrt(pa_cm2))
-        
+
         return quad(self.dsigma_dt, tmin, tmax, args=(s, ma, self.M, g,))[0]
 
 
@@ -97,7 +97,7 @@ def primakoff_sigma_tsai(energy, z, a, ma, g):
 
 
 def primakoff_sigma(eg, g, ma, z, r0 = 2.2e-10 / METER_BY_MEV):
-    # inverse-Primakoff scattering total xs (Creswick et al)
+    # Primakoff scattering total xs (Creswick et al)
     # r0: screening parameter
     prefactor = (g * z)**2 / (2*137)
     eta2 = r0**2 * eg**2
@@ -105,31 +105,15 @@ def primakoff_sigma(eg, g, ma, z, r0 = 2.2e-10 / METER_BY_MEV):
 
 
 
-
-def epem_to_alp_photon_dsigma_de(ea, ep, g=1.0, ma=1.0, z=1):
-    # e+ e- annihilation into gamma ALP via a virtual photon
-    s = 2 * M_E * (M_E + ep)
-    ps_cm = sqrt((s - ma**2)**2 / (4*s))
-    pp_cm = sqrt(((s - 2*M_E**2)**2 - 4*M_E**4)/ (4*s))
-    es_cm = sqrt(ps_cm**2 + ma**2)
-    ep_cm = sqrt(pp_cm**2 + M_E**2)
-
-    beta = sqrt(ep**2 - M_E**2) / (M_E + ep)
-    gamma = power(1-beta**2, -0.5)
-
-    costheta =  (ea/gamma - es_cm)/(beta*ps_cm)
-
-    t = ma**2 + M_E**2 - 2 * (ep_cm * es_cm - pp_cm * ps_cm * costheta)
-
-    m_st = z * 4*pi*ALPHA*g**2 * (2*s*M_E**4 + 2*M_E**2 * (ma**4 - s*ma**2 - 2*s*t) \
-        + s*(ma**4 - 2*ma**2 * (s + t) + s**2 + 2*s*t + 2*t**2))/s**2
-    
-    jacobian = 2 * pp_cm / gamma / beta
-    
-    return heaviside(ep - max((ma**2 - M_E**2)/(2*M_E), M_E), 1.0) * jacobian * m_st / (16*pi*(s - 4*M_E**2)*s)
-
-
-
+def primakoff_sigma_massive(ea, Z, ma, g):
+    """
+    Debopam corrections on axion mass
+    """
+    if ea < ma: return 0
+    alpha = 1/137
+    pa = sqrt(ea**2 - ma**2)
+    Egamma = ea
+    return (alpha*Z**2*g**2*pa*(-4*Egamma*pa-(2*Egamma**2-ma**2)*(np.log(np.abs((2*Egamma*(Egamma-pa)-ma**2)/(2*Egamma*(Egamma+pa)-ma**2))))))/(16*Egamma**3)
 
 
 
@@ -143,7 +127,7 @@ def compton_sigma(eg, g, ma, z=1):
     k0 = (eg*M_E + M_E**2)/sqrt(s)
     p = sqrt(p0**2 - ma**2)
     k = sqrt(s) - k0
-    
+
     prefactor = heaviside(eg-ma,0.0)*(z*ALPHA*g**2 / (8*s)) * (p/k)
     return prefactor * (-3 + (M_E**2 - ma**2)/s + s*power(ma / (2*eg*M_E),2) \
                         + (1 - (ma**2 / (eg*M_E)) + (ma**2 * (ma**2 - 2*M_E**2)/(2*power(eg*M_E,2)))) \
@@ -159,26 +143,14 @@ def compton_dsigma_dea(ea, eg, g, ma, z=1):
     s = 2 * M_E * eg + M_E ** 2
     x = ((ma**2 / (2*eg*M_E)) - ea / eg + 1)
 
-    xmin = ((s - M_E**2)*(s - M_E**2 + ma**2) 
+    xmin = ((s - M_E**2)*(s - M_E**2 + ma**2)
             - (s - M_E**2)*sqrt((s - M_E**2 + ma**2)**2 - 4*s*ma**2))/(2*s*(s-M_E**2))
-    xmax = ((s - M_E**2)*(s - M_E**2 + ma**2) 
+    xmax = ((s - M_E**2)*(s - M_E**2 + ma**2)
             + (s - M_E**2)*sqrt((s - M_E**2 + ma**2)**2 - 4*s*ma**2))/(2*s*(s-M_E**2))
 
     thresh = heaviside(eg - ma, 0.0)*heaviside(x-xmin,0.0)*heaviside(xmax-x,0.0)
     return z * thresh * (1 / eg) * pi * a * aa / (s - M_E ** 2) * (x / (1 - x) * (-2 * ma ** 2 / (s - M_E ** 2) ** 2
                                                                 * (s - M_E ** 2 / (1 - x) - ma ** 2 / x) + x))
-
-
-
-
-def compton_dsigma_domega(theta, Ea, ma, ge):
-    # Differential cross-section dS/dOmega_a. (γ + e- > a + e-)
-    y = 2*M_E*Ea + ma**2
-    pa = sqrt(Ea**2 - ma**2)
-    e_gamma = 0.5*y/(M_E + Ea - pa*cos(theta))
-
-    prefactor = ge**2 * ALPHA * e_gamma / (4*pi*2*pa*M_E**2)
-    return prefactor * (1 + 4*(M_E*e_gamma/y)**2 - 4*M_E*e_gamma/y - 4*M_E*e_gamma*(ma*pa*sin(theta))**2 / y**3)
 
 
 
@@ -189,7 +161,7 @@ def brem_dsigma_dea_domega(Ea, thetaa, Ee, g, ma, z):
     theta_max = max(sqrt(ma*M_E)/Ee, power(ma/Ee, 3/2))
     x = Ea / Ee
     l = (Ee * thetaa / M_E)**2
-    U = l*x*M_E**2 + x*M_E**2 + ((1-x)*ma**2) / x
+    U = l*x*M_E**2 + x*M_E**2 + ((1-x)*M_E**2) / x
     tmin = (U / (2*Ee*(1-x)))**2
     a = 111*power(z, -1/3)/M_E
     aPrime = 773*power(z, -2/3)/M_E
@@ -254,10 +226,9 @@ def resonance_sigma(ee, ma, g):
 
 
 
-def resonance_peak(g, ma):
+def resonance_peak(g):
     # Returns the peak value of the resonance production cross section (e- e+ -> a)
-    #return pi * g**2 / (2 * M_E)
-    return 2*pi*M_E*power(g / ma, 2) / sqrt(1 - power(2*M_E/ma, 2))
+    return pi * g**2 / (2 * M_E)
 
 
 
@@ -284,5 +255,5 @@ def associated_dsigma_dcos_CM(costheta_cm, ep_lab, ma, g, z=1):
     jacobian = 2 * ep_cm * ea_cm  # dt/dcostheta
 
     prefactor = z * (4*pi*ALPHA) * g**2
-    
+
     return heaviside(ep_lab - max((ma**2 - M_E**2)/(2*M_E), M_E), 1.0) * prefactor * jacobian * M2 / (16*pi*(s - 4*M_E**2)*s)

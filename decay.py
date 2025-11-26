@@ -14,41 +14,10 @@ def W_gg(g_agamma, ma):
 
 
 
-def W_ff(g, mf, ma):
-    # a -> f f   generic decay
-    return g**2 * ma * sqrt(1 - (2 * mf / ma)**2) / (8 * pi) \
-        if 1 - 4 * (mf / ma) ** 2 > 0 else 0.0
-
-
-
-
 def W_ee(g_ae, ma):
     # a -> e+ e-
     return g_ae**2 * ma * sqrt(1 - (2 * M_E / ma)**2) / (8 * pi) \
         if 1 - 4 * (M_E / ma) ** 2 > 0 else 0.0
-
-
-
-
-# Loop functions
-def fp2(tau):
-    return arcsin(1/sqrt(tau))**2 if tau >= 1 \
-        else pi**2 / 4  + log((1+sqrt(1-tau))/(1-sqrt(1-tau)))**2 / 4
-
-
-
-
-def b1(tau):
-    return 1 - tau*fp2(tau)
-
-
-
-
-def W_gg_loop(g_af, ma, mf):
-    # a -> gamma gamma via f loop
-    #g_agamma = (g_af * ALPHA / (pi * mf)) * (1 - power(2*mf*arcsin(ma/(2*mf))/ma,2))
-    g_agamma_eff = g_af * ALPHA * b1(power(2*mf/ma, 2)) / (4*pi)
-    return W_gg(g_agamma_eff, ma)
 
 
 

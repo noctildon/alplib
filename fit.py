@@ -10,23 +10,23 @@ from scipy.signal import savgol_filter
 
 
 def TwoSidedGridSearch(generator, observations, param_grid, background=None, target_cl=0.90,
-                        ddof=0, verbose=False, delta_chi2=True):
+                        ddof=0, verbose=False, delta_chi2=False):
     # This is a brute-force grid search for the upper and lower limit CLs.
     lower_cl = param_grid[0]
     upper_cl = param_grid[-1]
 
     def statistic(param):
         if background is not None:
-            return np.sum(power(generator(param) + background - observations, 2)/background)
-        elif background is not None and delta_chi2 == False:
             return chisquare(generator(param) + background, observations, ddof)[0]
+        elif background is not None and delta_chi2 == True:
+            return np.sum(power(generator(param) + background - observations, 2)/background)
         else:
             return np.sum(generator(param))
 
     stop_value = chi2.ppf(target_cl, observations.shape[0]) - observations.shape[0] \
         if background is not None else 2.3
     if delta_chi2:
-        stop_value = 2.71
+        stop_value = 6.18
 
     # lower bound
     if verbose:
@@ -39,7 +39,7 @@ def TwoSidedGridSearch(generator, observations, param_grid, background=None, tar
                 print("chi2 = ", stat)
                 print("found lower cl = ", lower_cl)
             break
-    
+
     # upper bound
     if verbose:
         print("getting UPPER BOUND...")
@@ -92,7 +92,7 @@ def binary_search(test_function, stop_value, lower_edge, upper_edge, tolerance=0
             else:
                 x_lower = x
                 x = (x_upper + x_lower)/2
-        
+
         if x == x_lower or x == x_upper:
             if verbose:
                 print("Ran into edge of search window, exiting")
@@ -129,7 +129,7 @@ class ChiSquareRandomizedSearch:
     which is a function of a single model parameter (theta), a set of observations, and an
     optional set of backgrounds. signal_generator, observations, and background must all have
     the same array shape.
-    
+
     Options:
     target_cl: the target CL in decimal form
     tolerance: the percentage tolerance away from the chi2 value associated with the target_cl
@@ -154,14 +154,14 @@ class ChiSquareRandomizedSearch:
 
         self.lower_cl = None
         self.upper_cl = None
-    
+
     def test_stat(self, theta):
         # Takes in model parameter theta
         if self.bkg is not None:
             return chisquare(self.signal(theta) + self.bkg, self.obs, self.ddof)[0]
         else:
             return np.sum(self.signal(theta))
-    
+
     def update_search_window(self):
         sorted_chi2_map = self.get_sorted_chisq_dist()
         chi2_vals = sorted_chi2_map[:,1]
@@ -174,7 +174,7 @@ class ChiSquareRandomizedSearch:
         else:
             return param_vals[0], param_vals[-1]
 
-    
+
     def run_search(self, verbose=False):
         # Draw random variates over parameter range
 
@@ -206,10 +206,10 @@ class ChiSquareRandomizedSearch:
                 middle_ctrl_pts.append(theta)
             else:
                 outer_ctrl_pts.append(theta)
-        
+
         if verbose:
             print("Finished candidates. beginning control pt. search...")
-        
+
         # Begin randomized search in window (lower_edge, upper_edge)
         upper_edge = self.range[1]
         lower_edge = self.range[0]
@@ -240,11 +240,11 @@ class ChiSquareRandomizedSearch:
                 middle_ctrl_pts.append(theta_rnd)
             else:
                 outer_ctrl_pts.append(theta_rnd)
-            
+
 
             lower_edge, upper_edge = self.update_search_window()
 
-            # If we have a middle control point, use it to differentiate 
+            # If we have a middle control point, use it to differentiate
             # where the outer control points lie and update the search window
             if len(middle_ctrl_pts) >= 1:
                 # Check if we find any chi2 within tolerance of the CL targets
@@ -273,18 +273,18 @@ class ChiSquareRandomizedSearch:
                                             tolerance=self.tol, is_increasing=True, verbose=verbose)
             self.param_list.append(self.lower_cl)
             self.chisq_list.append(self.test_stat(self.lower_cl))
-        
+
         if self.upper_cl is None:
             self.upper_cl = binary_search(self.test_stat, self.target_chi2, theta_mid_upper, theta_upper,
                                             tolerance=self.tol, is_increasing=False, verbose=verbose)
             self.param_list.append(self.upper_cl)
             self.chisq_list.append(self.test_stat(self.upper_cl))
-        
+
         if verbose:
             print("found upper CL and lower CL at chi2 = ", self.chisq_list[-1], self.chisq_list[-2])
-        
+
         return self.lower_cl, self.upper_cl
-    
+
     def get_sorted_chisq_dist(self):
         chisq_param_pairs = np.array([self.param_list, self.chisq_list]).transpose()
         return chisq_param_pairs[chisq_param_pairs[:,0].argsort()]
@@ -329,7 +329,7 @@ class PseudoExperiment:
             obs_i = readfile[i,:]
             self.chi2_values.append(chisquare(obs_i, self.exp_values, n_dof)[0])
         return np.array(self.chi2_values)
-    
+
     def get_chi2_median(self):
         return np.median(self.chi2_values)
 

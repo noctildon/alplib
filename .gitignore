@@ -1,1 +1,11 @@
 __pycache__
+.gitdraft
+.venv
+.vscode
+__pycache__/
+.ipynb_checkpoints/
+
+*.pyc
+*.so
+*.prf
+*.slurm
