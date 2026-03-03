@@ -38,7 +38,9 @@ class AxionFlux:
     def propagate(self, decay_width, rescale_factor=1.0):
         e_a = np.array(self.axion_energy)
         wgt = np.array(self.axion_flux)
-        if (e_a**2 - self.ma**2).all() >0:
+
+        # if (e_a**2 - self.ma**2).all() > 0:
+        if ((e_a**2 - self.ma**2) > 0).all():
             # Get axion Lorentz transformations and kinematics
             p_a = sqrt(e_a**2 - self.ma**2)
             v_a = p_a / e_a

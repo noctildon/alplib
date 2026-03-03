@@ -345,7 +345,7 @@ class IsotropicAxionFromPrimakoff:
 
     def absorption_events(self, detector_number, detection_time, threshold, nucl_exes, Jis, axion_mx=None):
         res = 0
-        photo_energies = np.array([])
+        photo_energies = []
         for i in range(len(self.axion_energy)):
             if self.axion_energy[i] < threshold:
                 self.abs_axion_weight[i] = 0.0
@@ -356,12 +356,13 @@ class IsotropicAxionFromPrimakoff:
             for Ji, nucl_ex in zip(Jis, nucl_exes): # sum over all nucleus
                 photo_energy, xs = abs_nu_xsec_GT(self.axion_energy[i], self.axion_mass, self.gann, nucl_ex, Ji)
                 xsec_sum += xs
-                photo_energies = np.concatenate((photo_energies, photo_energy))
+                if photo_energy is not None:
+                    photo_energies = photo_energies + [photo_energy]
 
             self.abs_axion_weight[i] = wgt * xsec_sum * detection_time * detector_number * METER_BY_MEV ** 2
             res += self.abs_axion_weight[i]
 
-        self.deex_photon_energy = photo_energies
+        self.deex_photon_energy = np.array(photo_energies)
         return res
 
     def absorption_events_multipole(self, detector_number, detection_time, threshold, axion_mx: AxionMultipoleXsec,
